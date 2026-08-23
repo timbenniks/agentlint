@@ -29,13 +29,23 @@ jobs:
           throw new Error('Expected tag v' + pkg.version + ', received ' + process.env.TAG)"
         env:
           TAG: ${{ github.event.release.tag_name }}
+      - name: Check whether version is already published
+        id: registry
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Publish prerelease
-        if: github.event.release.prerelease
+        if: github.event.release.prerelease && steps.registry.outputs.published != 'true'
         run: npm publish --tag next --provenance
         env:
           npm_config_cache: ${{ runner.temp }}/npm-cache
       - name: Publish stable release
-        if: ${{ !github.event.release.prerelease }}
+        if: ${{ !github.event.release.prerelease && steps.registry.outputs.published != 'true' }}
         run: npm publish --tag latest --provenance
         env:
           npm_config_cache: ${{ runner.temp }}/npm-cache
