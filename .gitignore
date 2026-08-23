@@ -1,0 +1,10 @@
+node_modules
+dist
+.agentlint
+coverage
+*.log
+.DS_Store
+.env
+.env.*
+playwright-report
+test-results
