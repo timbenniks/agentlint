@@ -55,4 +55,22 @@ describe("OpenAPI", () => {
     const parsed = parseOpenApi('{"hello":true}', "https://example.com/x.json");
     expect(parsed.valid).toBe(false);
   });
+
+  it("resolves referenced typed error responses", () => {
+    const parsed = parseOpenApi(JSON.stringify({
+      openapi: "3.1.0",
+      info: { title: "Demo", version: "1" },
+      paths: { "/items": { get: { operationId: "getItems", responses: {
+        "200": { description: "ok", content: { "application/json": { schema: { type: "object" } } } },
+        "429": { $ref: "#/components/responses/RateLimited" },
+      } } } },
+      components: { responses: { RateLimited: {
+        description: "slow down",
+        headers: { RateLimit: { schema: { type: "string" } } },
+        content: { "application/problem+json": { schema: { type: "object" } } },
+      } } },
+    }), "https://example.com/openapi.json");
+    expect(parsed.operations[0]?.typedErrorResponseCodes).toEqual(["429"]);
+    expect(parsed.operations[0]?.rateLimitHeaders).toEqual(["RateLimit"]);
+  });
 });

@@ -1,0 +1,41 @@
+name: Publish package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify release tag matches package version
+        run: >-
+          node --input-type=module -e
+          "import pkg from './package.json' with { type: 'json' };
+          if (process.env.TAG !== 'v' + pkg.version)
+          throw new Error('Expected tag v' + pkg.version + ', received ' + process.env.TAG)"
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+      - name: Publish prerelease
+        if: github.event.release.prerelease
+        run: npm publish --tag next --provenance
+        env:
+          npm_config_cache: ${{ runner.temp }}/npm-cache
+      - name: Publish stable release
+        if: ${{ !github.event.release.prerelease }}
+        run: npm publish --tag latest --provenance
+        env:
+          npm_config_cache: ${{ runner.temp }}/npm-cache

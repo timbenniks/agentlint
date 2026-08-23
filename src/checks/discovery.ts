@@ -71,6 +71,34 @@ export const sitemapCheck = defineCheck({
   },
 });
 
+export const canonicalHostCheck = defineCheck({
+  id: "canonical-host-consistency",
+  title: "canonical host consistency",
+  category: "discovery",
+  provenance: "STATIC",
+  severity: "recommended",
+  applicability: (ctx) => ctx.target.canonicalUrl
+    ? { applicable: true }
+    : { applicable: false, reason: "No canonical URL was found." },
+  run(ctx) {
+    const finalHost = new URL(ctx.target.finalUrl).host;
+    const canonicalHost = new URL(ctx.target.canonicalUrl!).host;
+    const sitemapHosts = [...new Set((ctx.discovered.sitemap?.urls ?? []).map((url) => {
+      try { return new URL(url).host; } catch { return "invalid"; }
+    }))];
+    const ev = [evidence("html", ctx.target.finalUrl, { finalHost, canonicalHost, sitemapHosts })];
+    if (finalHost === canonicalHost && sitemapHosts.every((host) => host === finalHost)) {
+      return pass("Canonical, final, and sitemap hosts are consistent.", ev);
+    }
+    return warn(`Final host ${finalHost} differs from canonical or sitemap host signals.`, ev, {
+      priority: "P2",
+      problem: "Mixed canonical host signals",
+      impact: "Agents may split identity, citations, and discovery across preview and production hosts.",
+      remediation: "Use one public canonical host in canonical tags, sitemaps, robots.txt, llms.txt, and agent guidance, or clearly document that the scanned host is a preview alias.",
+    });
+  },
+});
+
 export const llmsTxtCheck = defineCheck({
   id: "llms-txt",
   title: "llms.txt",
@@ -174,6 +202,7 @@ export const developerPortalCheck = defineCheck({
 export const discoveryChecks = [
   robotsTxtCheck,
   sitemapCheck,
+  canonicalHostCheck,
   llmsTxtCheck,
   agentDiscoveryCheck,
   developerPortalCheck,

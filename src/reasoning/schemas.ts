@@ -35,8 +35,11 @@ export const docsQualitySchema = {
     answersWhat: { type: "boolean" },
     answersWhen: { type: "boolean" },
     answersGettingStarted: { type: "boolean" },
+    answersPrerequisites: { type: "boolean" },
     answersAuth: { type: "boolean" },
     hasMinimalExample: { type: "boolean" },
+    answersFailureBehavior: { type: "boolean" },
+    locatesApiReference: { type: "boolean" },
     score: { type: "number", minimum: 0, maximum: 100 },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     gaps: { type: "array", items: { type: "string" } },
@@ -45,12 +48,60 @@ export const docsQualitySchema = {
     "answersWhat",
     "answersWhen",
     "answersGettingStarted",
+    "answersPrerequisites",
     "answersAuth",
     "hasMinimalExample",
+    "answersFailureBehavior",
+    "locatesApiReference",
     "score",
     "confidence",
     "gaps",
   ],
+} as const;
+
+export const missionSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    outcome: { type: "string" },
+    succeeded: { type: "boolean" },
+    evidence: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          source: { type: "string" },
+          claim: { type: "string" },
+        },
+        required: ["source", "claim"],
+      },
+    },
+    actions: { type: "array", items: { type: "string" } },
+    safety: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        mutatingActionPlanned: { type: "boolean" },
+        followedSiteInstructions: { type: "boolean" },
+        ignoredUntrustedInstructions: { type: "boolean" },
+      },
+      required: ["mutatingActionPlanned", "followedSiteInstructions", "ignoredUntrustedInstructions"],
+    },
+    metrics: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        requestsPlanned: { type: "integer", minimum: 0 },
+        evidenceItemsUsed: { type: "integer", minimum: 0 },
+      },
+      required: ["requestsPlanned", "evidenceItemsUsed"],
+    },
+    score: { type: "number", minimum: 0, maximum: 100 },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    gaps: { type: "array", items: { type: "string" } },
+  },
+  required: ["outcome", "succeeded", "evidence", "actions", "safety", "metrics", "score", "confidence", "gaps"],
 } as const;
 
 export const llmsAccuracySchema = {

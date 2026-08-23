@@ -4,11 +4,13 @@ import { collectContext } from "./collector.ts";
 import { runChecks, scoreChecks } from "./scoring.ts";
 import { writeReports } from "./state.ts";
 import { renderMarkdown } from "../reporters/markdown.ts";
-import type { ReportCheck, ScanOptions, ScanReport, ScoredCheck } from "../types.ts";
+import { renderRemediationPrompt } from "../reporters/prompt.ts";
+import { missionChecks } from "../checks/missions.ts";
+import type { AgentJourney, ReportCheck, ScanOptions, ScanReport, ScoredCheck } from "../types.ts";
 
 export async function runScan(options: ScanOptions): Promise<{ report: ScanReport; scored: ScoredCheck[] }> {
   const context = await collectContext(options);
-  const scored = await runChecks(context, allChecks);
+  const scored = await runChecks(context, options.missions ? [...allChecks, ...missionChecks] : allChecks);
   const score = scoreChecks(scored);
 
   const reasoningTasks = scored
@@ -32,6 +34,16 @@ export async function runScan(options: ScanOptions): Promise<{ report: ScanRepor
     naReason: s.applicability.applicable ? undefined : s.applicability.reason,
   }));
 
+  const journeys: AgentJourney[] = reasoningTasks
+    .filter((task) => task.kind === "mission")
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      taskId: task.id,
+      status: "pending",
+      summary: "Awaiting evidence-only mission evaluation.",
+    }));
+
   const report: ScanReport = {
     schemaVersion: "1",
     agentlintVersion: AGENTLINT_VERSION,
@@ -44,9 +56,9 @@ export async function runScan(options: ScanOptions): Promise<{ report: ScanRepor
     categories: score.categories,
     checks,
     reasoningTasks,
-    journeys: [],
+    journeys,
   };
 
-  await writeReports(options.output, report, renderMarkdown(report));
+  await writeReports(options.output, report, renderMarkdown(report), renderRemediationPrompt(report));
   return { report, scored };
 }

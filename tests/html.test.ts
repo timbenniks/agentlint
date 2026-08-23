@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { flattenJsonLd, jsonLdTypes, parseHtml } from "../src/engine/html.ts";
+import { resolveEntityDeterministic } from "../src/engine/collector.ts";
 
 describe("HTML parsing", () => {
   it("extracts metadata, headings, and JSON-LD", () => {
@@ -37,5 +38,14 @@ describe("HTML parsing", () => {
     });
     expect(nodes).toHaveLength(2);
     expect(jsonLdTypes(nodes[1]!)).toEqual(["Person"]);
+  });
+
+  it("prefers a named Person over a WebSite entity", () => {
+    const page = parseHtml("<title>Ada</title><h1>Ada</h1>", "https://example.com");
+    const entity = resolveEntityDeterministic(page, [
+      { source: page.finalUrl, types: ["WebSite"], data: { name: "Ada" } },
+      { source: page.finalUrl, types: ["Person"], data: { name: "Ada" } },
+    ]);
+    expect(entity?.entityType).toBe("person");
   });
 });

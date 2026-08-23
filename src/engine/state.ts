@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ReasoningTask, ScanReport } from "../types.ts";
+import { renderHtml } from "../reporters/html.ts";
 import { safeFilename } from "./util.ts";
 
 export interface ScanState {
@@ -17,19 +18,26 @@ export function latestPaths(output: string) {
   return {
     json: join(output, "latest.json"),
     md: join(output, "latest.md"),
+    html: join(output, "latest.html"),
     state: join(output, "state.json"),
     scans: join(output, "scans"),
+    prompt: join(output, "fix-prompt.md"),
+    baseline: join(output, "baseline.json"),
   };
 }
 
-export async function writeReports(output: string, report: ScanReport, markdown: string): Promise<void> {
+export async function writeReports(output: string, report: ScanReport, markdown: string, prompt?: string): Promise<void> {
   const paths = latestPaths(output);
   const id = safeFilename(report.scanId);
+  const html = renderHtml(report, prompt);
   await mkdir(paths.scans, { recursive: true });
   await writeFile(paths.json, JSON.stringify(report, null, 2));
   await writeFile(paths.md, markdown);
+  await writeFile(paths.html, html);
   await writeFile(join(paths.scans, `${id}.json`), JSON.stringify(report, null, 2));
   await writeFile(join(paths.scans, `${id}.md`), markdown);
+  await writeFile(join(paths.scans, `${id}.html`), html);
+  if (prompt !== undefined) await writeFile(paths.prompt, prompt);
   await writeState(output, {
     latestScanId: report.scanId,
     tasks: report.reasoningTasks,
@@ -61,6 +69,6 @@ export async function readLatestReport(output = ".agentlint"): Promise<ScanRepor
   }
 }
 
-export async function saveLatestReport(output: string, report: ScanReport, markdown: string): Promise<void> {
-  await writeReports(output, report, markdown);
+export async function saveLatestReport(output: string, report: ScanReport, markdown: string, prompt?: string): Promise<void> {
+  await writeReports(output, report, markdown, prompt);
 }

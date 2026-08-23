@@ -10,6 +10,17 @@ describe("scan options", () => {
   it("defaults to browser scanning", () => {
     const options = parseScanOptions("https://example.com", {});
     expect(options.browser).toBe(true);
+    expect(options.missions).toBe(false);
+  });
+
+  it("enables bounded missions explicitly", () => {
+    const options = parseScanOptions("https://example.com", { missions: true });
+    expect(options.missions).toBe(true);
+  });
+
+  it("accepts HTML as a report format", () => {
+    const options = parseScanOptions("https://example.com", { format: "html" });
+    expect(options.format).toBe("html");
   });
 });
 

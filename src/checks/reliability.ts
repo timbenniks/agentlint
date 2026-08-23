@@ -1,4 +1,4 @@
-import { defineCheck, na } from "./helpers.ts";
+import { defineCheck, fail, na, pass, warn } from "./helpers.ts";
 import { evidence } from "../engine/util.ts";
 
 const noApi = (reason: string) => ({
@@ -18,11 +18,21 @@ export const reliabilityChecks = [
         ? { applicable: true }
         : noApi("No API surface detected."),
     run(ctx) {
-      return na("Typed JSON error checks ship in 0.2. OpenAPI was discovered.", [
-        evidence("openapi", ctx.discovered.openApi?.url ?? "", {
-          operations: ctx.discovered.openApi?.operations.length,
-        }),
-      ]);
+      const operations = ctx.discovered.openApi?.operations ?? [];
+      const typed = operations.filter((operation) => operation.typedErrorResponseCodes.length > 0);
+      const ev = [evidence("openapi", ctx.discovered.openApi?.url ?? "", operations.map((operation) => ({
+        operationId: operation.operationId,
+        errorCodes: operation.responseCodes.filter((code) => !/^2/.test(code)),
+        typedErrorCodes: operation.typedErrorResponseCodes,
+      })))];
+      if (typed.length === operations.length) return pass(`${typed.length}/${operations.length} operations declare typed error responses.`, ev);
+      if (typed.length === 0) return fail("No operations declare typed error responses.", ev, {
+        priority: "P1",
+        problem: "Untyped API errors",
+        impact: "Agents cannot recover from failures deterministically.",
+        remediation: "Document typed application/problem+json or equivalent schemas for 4xx, 429, and 5xx responses.",
+      });
+      return warn(`${typed.length}/${operations.length} operations declare typed error responses.`, ev);
     },
   }),
   defineCheck({
@@ -35,8 +45,21 @@ export const reliabilityChecks = [
       ctx.capabilities.hasOpenApi
         ? { applicable: true }
         : noApi("No API surface detected."),
-    run() {
-      return na("Rate-limit header analysis ships in 0.2.");
+    run(ctx) {
+      const operations = ctx.discovered.openApi?.operations ?? [];
+      const documented = operations.filter((operation) => operation.rateLimitHeaders.length > 0);
+      const ev = [evidence("openapi", ctx.discovered.openApi?.url ?? "", operations.map((operation) => ({
+        operationId: operation.operationId,
+        rateLimitHeaders: operation.rateLimitHeaders,
+      })))];
+      if (documented.length === operations.length) return pass(`${documented.length}/${operations.length} operations document rate-limit headers.`, ev);
+      if (documented.length === 0) return warn("OpenAPI does not document rate-limit response headers.", ev, {
+        priority: "P2",
+        problem: "Rate limits are not machine-readable",
+        impact: "Agents cannot pace requests or recover from HTTP 429 reliably.",
+        remediation: "Document RateLimit and RateLimit-Policy (or compatible) response headers and the 429 response in OpenAPI.",
+      });
+      return warn(`${documented.length}/${operations.length} operations document rate-limit headers.`, ev);
     },
   }),
   defineCheck({

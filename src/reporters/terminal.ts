@@ -2,6 +2,7 @@ import pc from "picocolors";
 import type { ReportCheck, ScanReport, Scorecard } from "../types.ts";
 import { CATEGORY_TITLES } from "../constants.ts";
 import { hostLabel } from "../engine/url.ts";
+import { actionableChecks, recommendationFor } from "./prompt.ts";
 
 const STATUS: Record<string, string> = {
   pass: pc.green("✓"),
@@ -10,7 +11,7 @@ const STATUS: Record<string, string> = {
   na: pc.dim("N/A"),
 };
 
-export function renderTerminal(report: ScanReport, verbose = false): string {
+export function renderTerminal(report: ScanReport, verbose = false, output = ".agentlint"): string {
   const host = hostLabel(report.target.finalUrl);
   const lines: string[] = [];
   const width = 24;
@@ -30,6 +31,7 @@ export function renderTerminal(report: ScanReport, verbose = false): string {
   lines.push("");
   const overall = report.score.overall === null ? "N/A" : String(report.score.overall);
   lines.push(` ${pc.bold(overall)}  ${report.score.label}`);
+  lines.push(` ${pc.dim(`surface ${report.score.surface ?? "N/A"} · bounded tasks ${report.score.taskSuccess ?? "pending"}`)}`);
   lines.push("");
   lines.push(` ${pc.green(String(report.score.passed).padStart(3))} passed`);
   lines.push(` ${pc.yellow(String(report.score.warnings).padStart(3))} warnings`);
@@ -51,12 +53,14 @@ export function renderTerminal(report: ScanReport, verbose = false): string {
     lines.push("");
   }
 
-  lines.push(` report → .agentlint/latest.md`);
+  lines.push(` report → ${output}/latest.md`);
+  lines.push(`    html → ${output}/latest.html`);
+  lines.push(` prompt → ${output}/fix-prompt.md`);
   lines.push("");
   return lines.join("\n");
 }
 
-export function renderProgress(report: ScanReport): string {
+export function renderProgress(report: ScanReport, output = ".agentlint"): string {
   const lines = ["", pc.bold("Agentlint"), "", `Scanning ${hostLabel(report.target.finalUrl)}...`, ""];
   let currentCat = "";
   for (const check of report.checks) {
@@ -83,10 +87,14 @@ export function renderProgress(report: ScanReport): string {
     lines.push("");
   }
   lines.push(`Agent readiness: ${report.score.overall ?? "N/A"}`);
+  lines.push(`Surface readiness: ${report.score.surface ?? "N/A"}`);
+  lines.push(`Bounded task success: ${report.score.taskSuccess ?? "pending"}`);
   lines.push("");
   lines.push("Reports:");
-  lines.push("  .agentlint/latest.json");
-  lines.push("  .agentlint/latest.md");
+  lines.push(`  ${output}/latest.json`);
+  lines.push(`  ${output}/latest.md`);
+  lines.push(`  ${output}/latest.html`);
+  lines.push(`  ${output}/fix-prompt.md`);
   lines.push("");
   return lines.join("\n");
 }
@@ -114,9 +122,7 @@ export function renderExplain(report: ScanReport, category?: string): string {
 }
 
 export function renderFix(report: ScanReport): string {
-  const recs = report.checks
-    .filter((c) => c.recommendation && (c.status === "fail" || c.status === "warning"))
-    .sort((a, b) => priorityRank(a.recommendation!.priority) - priorityRank(b.recommendation!.priority));
+  const recs = actionableChecks(report);
 
   const lines = ["", pc.bold("Recommended changes"), ""];
   if (recs.length === 0) {
@@ -127,7 +133,7 @@ export function renderFix(report: ScanReport): string {
 
   let current = "";
   for (const check of recs) {
-    const rec = check.recommendation!;
+    const rec = recommendationFor(check);
     if (rec.priority !== current) {
       current = rec.priority;
       lines.push(pc.bold(current));

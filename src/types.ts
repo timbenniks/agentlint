@@ -53,10 +53,16 @@ export interface ReasoningTask {
   taskVersion: "1";
   id: string;
   type: "reasoning";
+  kind?: "judgment" | "mission";
   title: string;
   instructions: string;
   evidence: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
+  scoring?: {
+    scoreField: string;
+    passAt: number;
+    warningAt: number;
+  };
   status: "pending" | "resolved" | "invalid";
   result?: unknown;
 }
@@ -168,12 +174,23 @@ export interface OpenApiOperation {
   hasRequestSchema: boolean;
   hasResponseSchema: boolean;
   parameterCount: number;
+  parameters: { name: string; in: string; required: boolean; schemaType?: string }[];
+  requestBodyRequired: boolean;
+  responseCodes: string[];
+  typedErrorResponseCodes: string[];
+  rateLimitHeaders: string[];
   deprecated: boolean;
   security: boolean;
 }
 
 export interface McpEvidence {
   discoveredAt?: string;
+  url?: string;
+  status?: number;
+  valid?: boolean;
+  endpoint?: string;
+  transport?: string;
+  document?: Record<string, unknown>;
   handshake?: Record<string, unknown>;
 }
 
@@ -257,10 +274,20 @@ export interface ApiCapabilities {
 export interface CapabilityMap {
   api: ApiCapabilities;
   hasOpenApi: boolean;
+  hasMcp: boolean;
   hasBrowser: boolean;
   hasLlmsTxt: boolean;
   hasDeveloperPortal: boolean;
   jsRequired: boolean;
+}
+
+export interface DeveloperPortalEvidence {
+  url: string;
+  status: number;
+  title?: string;
+  description?: string;
+  headings: HeadingNode[];
+  textSample?: string;
 }
 
 export interface ScanTarget {
@@ -289,7 +316,7 @@ export interface ScanContext {
     graphql?: GraphQLEvidence;
     jsonLd: JsonLdEvidence[];
     markdown: MarkdownEvidence[];
-    developerPortals: { url: string; status: number; title?: string }[];
+    developerPortals: DeveloperPortalEvidence[];
     notFound?: HttpResponse;
     crawlerAccess: CrawlerAccessResult[];
   };
@@ -323,13 +350,14 @@ export interface ScanOptions {
   browser: boolean;
   depth: number;
   maxPages: number;
-  format: "terminal" | "json" | "markdown";
+  format: "terminal" | "json" | "markdown" | "html";
   output: string;
   verbose: boolean;
   agent: boolean;
   json: boolean;
   allowPrivate: boolean;
   ci: boolean;
+  missions: boolean;
 }
 
 export interface ScoredCheck {
@@ -354,12 +382,27 @@ export interface CategoryScore {
 
 export interface Scorecard {
   overall: number | null;
+  surface: number | null;
+  taskSuccess: number | null;
   categories: CategoryScore[];
   passed: number;
   failed: number;
   warnings: number;
   na: number;
   label: string;
+}
+
+export interface AgentJourney {
+  id: string;
+  title: string;
+  taskId: string;
+  status: "pending" | "pass" | "warning" | "fail";
+  score?: number;
+  summary: string;
+  metrics?: {
+    requestsPlanned?: number;
+    evidenceItemsUsed?: number;
+  };
 }
 
 export interface ScanReport {
@@ -374,7 +417,7 @@ export interface ScanReport {
   categories: CategoryScore[];
   checks: ReportCheck[];
   reasoningTasks: ReasoningTask[];
-  journeys: unknown[];
+  journeys: AgentJourney[];
 }
 
 export interface ReportCheck {

@@ -1,0 +1,7 @@
+# Parcelbird
+
+Shipment tracking API for commerce teams.
+
+- [Developer documentation](ORIGIN/docs)
+- [OpenAPI schema](ORIGIN/openapi.json)
+- [About the company](ORIGIN/about)

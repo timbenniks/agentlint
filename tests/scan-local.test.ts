@@ -100,6 +100,7 @@ describe("local scan", () => {
       json: true,
       allowPrivate: true,
       ci: false,
+      missions: false,
     });
 
     expect(report.schemaVersion).toBe("1");
@@ -145,6 +146,7 @@ describe("local scan", () => {
       json: true,
       allowPrivate: true,
       ci: false,
+      missions: false,
     });
     await expect(resolveTask("offering-clarity", '{"nope":true}', output)).rejects.toThrow(/schema/);
   });

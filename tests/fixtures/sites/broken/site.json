@@ -1,0 +1,17 @@
+{
+  "name": "broken public surface",
+  "routes": {
+    "/": "index.html",
+    "/robots.txt": "robots.txt",
+    "/sitemap.xml": "sitemap.xml"
+  },
+  "soft404": true,
+  "expect": {
+    "raw-html-content": "warning",
+    "ai-crawler-access": "warning",
+    "robots-policy": "warning",
+    "sitemap": "fail",
+    "llms-txt": "warning",
+    "agent-friendly-404": "fail"
+  }
+}

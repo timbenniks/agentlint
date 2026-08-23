@@ -1,0 +1,26 @@
+{
+  "name": "API SaaS product",
+  "routes": {
+    "/": "index.html",
+    "/docs": "docs.html",
+    "/about": "about.html",
+    "/privacy": "privacy.html",
+    "/robots.txt": "robots.txt",
+    "/sitemap.xml": "sitemap.xml",
+    "/llms.txt": "llms.txt",
+    "/agents.md": "agents.md",
+    "/openapi.json": "openapi.json",
+    "/.well-known/mcp": "mcp.json"
+  },
+  "expect": {
+    "raw-html-content": "pass",
+    "developer-portal": "pass",
+    "openapi-discovery": "pass",
+    "mcp-discovery": "pass",
+    "operation-ids": "pass",
+    "typed-inputs": "pass",
+    "typed-responses": "pass",
+    "function-calling": "pass",
+    "docs-quality": "warning"
+  }
+}

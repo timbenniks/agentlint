@@ -1,0 +1,22 @@
+{
+  "name": "content portfolio",
+  "routes": {
+    "/": "index.html",
+    "/about": "about.html",
+    "/contact": "contact.html",
+    "/robots.txt": "robots.txt",
+    "/sitemap.xml": "sitemap.xml",
+    "/llms.txt": "llms.txt",
+    "/agents.md": "agents.md",
+    "/index.md": "index.md"
+  },
+  "expect": {
+    "raw-html-content": "pass",
+    "robots-txt": "pass",
+    "sitemap": "pass",
+    "llms-txt": "pass",
+    "json-ld": "pass",
+    "developer-portal": "na",
+    "openapi-discovery": "na"
+  }
+}

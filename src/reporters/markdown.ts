@@ -10,6 +10,8 @@ export function renderMarkdown(report: ScanReport): string {
   lines.push(`- Started: ${report.startedAt}`);
   lines.push(`- Completed: ${report.completedAt}`);
   lines.push(`- Overall: **${report.score.overall ?? "N/A"}** (${report.score.label})`);
+  lines.push(`- Surface readiness: **${report.score.surface ?? "N/A"}**`);
+  lines.push(`- Bounded task success: **${report.score.taskSuccess ?? "Pending"}**`);
   lines.push("");
   lines.push(`## Scores`);
   lines.push("");
@@ -57,6 +59,15 @@ export function renderMarkdown(report: ScanReport): string {
     lines.push("");
     for (const task of report.reasoningTasks) {
       lines.push(`- \`${task.id}\` (${task.status})`);
+    }
+    lines.push("");
+  }
+
+  if (report.journeys.length) {
+    lines.push(`## Bounded agent missions`);
+    lines.push("");
+    for (const journey of report.journeys) {
+      lines.push(`- \`${journey.id}\`: **${journey.status.toUpperCase()}**${journey.score === undefined ? "" : ` (${journey.score}/100)`} — ${journey.summary}`);
     }
     lines.push("");
   }

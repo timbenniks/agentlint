@@ -36,6 +36,29 @@ export const openApiDiscoveryCheck = defineCheck({
   },
 });
 
+export const mcpDiscoveryCheck = defineCheck({
+  id: "mcp-discovery",
+  title: "MCP discovery",
+  category: "developer",
+  provenance: "PROTOCOL",
+  severity: "emerging",
+  applicability: (ctx) => ctx.discovered.mcp || ctx.capabilities.hasDeveloperPortal
+    ? { applicable: true }
+    : { applicable: false, reason: "No MCP or developer integration surface was detected." },
+  run(ctx) {
+    const mcp = ctx.discovered.mcp;
+    const ev = [evidence("mcp", mcp?.url ?? `${ctx.target.origin}/.well-known/mcp`, {
+      status: mcp?.status,
+      valid: mcp?.valid,
+      endpoint: mcp?.endpoint,
+      transport: mcp?.transport,
+    })];
+    if (mcp?.valid) return pass(`MCP discovery document found${mcp.endpoint ? ` with endpoint ${mcp.endpoint}` : ""}.`, ev);
+    if (mcp) return warn("MCP discovery endpoint returned a non-JSON document.", ev);
+    return fail("No MCP discovery document was found.", ev);
+  },
+});
+
 export const operationIdCheck = defineCheck({
   id: "operation-ids",
   title: "function-call compatible operationIds",
@@ -153,13 +176,14 @@ export const docsQualityCheck = defineCheck({
   run(ctx) {
     const task = docsQualityTask(ctx);
     return warn("Developer documentation quality requires reasoning.", [
-      evidence("html", ctx.target.finalUrl, task.evidence),
+      evidence("html", ctx.discovered.developerPortals.find((portal) => portal.status >= 200 && portal.status < 400)?.url ?? ctx.target.finalUrl, task.evidence),
     ], undefined, { reasoningTask: task });
   },
 });
 
 export const developerChecks = [
   openApiDiscoveryCheck,
+  mcpDiscoveryCheck,
   operationIdCheck,
   typedInputsCheck,
   typedResponsesCheck,

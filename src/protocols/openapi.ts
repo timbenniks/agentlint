@@ -56,7 +56,10 @@ export function extractOperations(document: Record<string, unknown>): OpenApiOpe
       const op = (pathItem as Record<string, unknown>)[method];
       if (!op || typeof op !== "object") continue;
       const rec = op as Record<string, unknown>;
-      const parameters = Array.isArray(rec.parameters) ? rec.parameters : [];
+      const pathParameters = Array.isArray((pathItem as Record<string, unknown>).parameters)
+        ? (pathItem as Record<string, unknown>).parameters as unknown[]
+        : [];
+      const parameters = [...pathParameters, ...(Array.isArray(rec.parameters) ? rec.parameters : [])];
       const responses = rec.responses && typeof rec.responses === "object" ? rec.responses : {};
       ops.push({
         path,
@@ -68,6 +71,23 @@ export function extractOperations(document: Record<string, unknown>): OpenApiOpe
         hasRequestSchema: hasTypedRequest(rec),
         hasResponseSchema: hasTypedResponse(responses as Record<string, unknown>),
         parameterCount: parameters.length + countRequestProps(rec),
+        parameters: parameters.flatMap((parameter) => {
+          if (!parameter || typeof parameter !== "object") return [];
+          const value = parameter as Record<string, unknown>;
+          if (typeof value.name !== "string" || typeof value.in !== "string") return [];
+          const schema = value.schema && typeof value.schema === "object" ? value.schema as Record<string, unknown> : {};
+          return [{
+            name: value.name,
+            in: value.in,
+            required: value.required === true,
+            schemaType: typeof schema.type === "string" ? schema.type : undefined,
+          }];
+        }),
+        requestBodyRequired: Boolean(rec.requestBody && typeof rec.requestBody === "object" && (rec.requestBody as Record<string, unknown>).required === true),
+        responseCodes: Object.keys(responses as Record<string, unknown>),
+        typedErrorResponseCodes: typedResponseCodes(responses as Record<string, unknown>, false, document),
+        rateLimitHeaders: responseHeaderNames(responses as Record<string, unknown>, document)
+          .filter((name) => /^(x-)?ratelimit/i.test(name)),
         deprecated: rec.deprecated === true,
         security: rec.security !== undefined || document.security !== undefined,
       });
@@ -141,6 +161,42 @@ function hasTypedResponse(responses: Record<string, unknown>): boolean {
     if ("schema" in response) return true;
   }
   return false;
+}
+
+function typedResponseCodes(responses: Record<string, unknown>, success: boolean, document: Record<string, unknown>): string[] {
+  const codes: string[] = [];
+  for (const [code, response] of Object.entries(responses)) {
+    if ((/^2/.test(code)) !== success || !response || typeof response !== "object") continue;
+    const rec = resolveObject(response as Record<string, unknown>, document);
+    const content = rec.content;
+    const typedContent = content && typeof content === "object"
+      && Object.values(content as Record<string, unknown>).some((media) => media && typeof media === "object" && "schema" in media);
+    if (typedContent || "schema" in rec) codes.push(code);
+  }
+  return codes;
+}
+
+function responseHeaderNames(responses: Record<string, unknown>, document: Record<string, unknown>): string[] {
+  const names = new Set<string>();
+  for (const response of Object.values(responses)) {
+    if (!response || typeof response !== "object") continue;
+    const headers = resolveObject(response as Record<string, unknown>, document).headers;
+    if (!headers || typeof headers !== "object") continue;
+    for (const name of Object.keys(headers as Record<string, unknown>)) names.add(name);
+  }
+  return [...names];
+}
+
+function resolveObject(value: Record<string, unknown>, document: Record<string, unknown>): Record<string, unknown> {
+  const ref = value.$ref;
+  if (typeof ref !== "string" || !ref.startsWith("#/")) return value;
+  let current: unknown = document;
+  for (const rawPart of ref.slice(2).split("/")) {
+    const part = rawPart.replaceAll("~1", "/").replaceAll("~0", "~");
+    if (!current || typeof current !== "object") return value;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current && typeof current === "object" ? current as Record<string, unknown> : value;
 }
 
 function countRequestProps(op: Record<string, unknown>): number {

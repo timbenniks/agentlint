@@ -1,0 +1,14 @@
+{
+  "name": "JavaScript application shell",
+  "routes": {
+    "/": "index.html",
+    "/robots.txt": "robots.txt"
+  },
+  "expect": {
+    "raw-html-content": "fail",
+    "robots-txt": "pass"
+  },
+  "capabilities": {
+    "jsRequired": true
+  }
+}

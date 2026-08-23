@@ -1,7 +1,7 @@
-export const AGENTLINT_VERSION = "0.1.0";
+export const AGENTLINT_VERSION = "0.1.0-rc.1";
 
 export const DEFAULT_USER_AGENT =
-  "Agentlint/0.1.0 (+https://github.com/timbenniks/agentlint)";
+  "Agentlint/0.1.0-rc.1 (+https://github.com/timbenniks/agentlint)";
 
 export const AI_CRAWLERS = [
   "GPTBot",

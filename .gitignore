@@ -8,3 +8,6 @@ coverage
 .env.*
 playwright-report
 test-results
+apps/docs/.vitepress/cache/
+apps/docs/.vitepress/dist/
+.vercel

@@ -1,6 +1,8 @@
 import Ajv from "ajv";
 import { readLatestReport, readState, saveLatestReport } from "../engine/state.ts";
 import { renderMarkdown } from "../reporters/markdown.ts";
+import { recomputeReportScores, reasoningResultScore } from "../engine/scoring.ts";
+import { renderRemediationPrompt } from "../reporters/prompt.ts";
 import type { ReasoningTask, ScanReport } from "../types.ts";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -41,17 +43,39 @@ export async function resolveTask(
     throw new Error(`Result failed schema validation: ${details}`);
   }
 
+  if (task.kind === "mission") validateMissionResult(task, parsed);
+
   task.status = "resolved";
   task.result = parsed;
 
   const check = report.checks.find((c) => c.reasoningTaskId === id);
   if (check) {
-    check.status = "pass";
+    const score = reasoningResultScore(parsed, task.scoring?.scoreField);
+    if (score !== undefined) {
+      const passAt = task.scoring?.passAt ?? 75;
+      const warningAt = task.scoring?.warningAt ?? 50;
+      check.status = score >= passAt ? "pass" : score >= warningAt ? "warning" : "fail";
+      check.score = Math.round((check.maxScore ?? 0) * score / 100);
+      check.recommendation = check.status === "pass" ? undefined : reasoningRecommendation(task, parsed);
+    } else {
+      check.status = "pass";
+      check.score = check.maxScore;
+    }
     check.summary = `Resolved by agent: ${summarizeResult(parsed)}`;
   }
 
-  recomputeScores(report);
-  await saveLatestReport(output, report, renderMarkdown(report));
+  const journey = report.journeys.find((item) => item.taskId === id);
+  if (journey && check) {
+    journey.status = check.status === "na" ? "pending" : check.status;
+    journey.score = reasoningResultScore(parsed, task.scoring?.scoreField);
+    journey.summary = check.summary;
+    const result = parsed as Record<string, unknown>;
+    const metrics = result.metrics;
+    if (metrics && typeof metrics === "object") journey.metrics = metrics as typeof journey.metrics;
+  }
+
+  recomputeReportScores(report);
+  await saveLatestReport(output, report, renderMarkdown(report), renderRemediationPrompt(report));
   return { task, report };
 }
 
@@ -65,28 +89,50 @@ function summarizeResult(result: unknown): string {
   return "accepted";
 }
 
-function recomputeScores(report: ScanReport): void {
-  for (const cat of report.categories) {
-    const items = report.checks.filter((c) => c.category === cat.id);
-    cat.passed = items.filter((i) => i.status === "pass").length;
-    cat.failed = items.filter((i) => i.status === "fail").length;
-    cat.warnings = items.filter((i) => i.status === "warning").length;
-    cat.na = items.filter((i) => i.status === "na").length;
-    const earned = items.reduce((s, i) => s + (i.status === "na" ? 0 : (i.score ?? 0)), 0);
-    const available = items.reduce((s, i) => {
-      if (i.status === "na" || i.severity === "emerging" || i.severity === "bonus") return s;
-      return s + (i.maxScore ?? 0);
-    }, 0);
-    cat.earned = earned;
-    cat.available = available;
-    cat.score = available === 0 ? null : Math.min(100, Math.round((earned / available) * 100));
+function validateMissionResult(task: ReasoningTask, result: unknown): void {
+  if (!result || typeof result !== "object") throw new Error("Mission result must be an object.");
+  const rec = result as Record<string, unknown>;
+  const serializedEvidence = JSON.stringify(task.evidence);
+  const claims = Array.isArray(rec.evidence) ? rec.evidence : [];
+  if (claims.length === 0) throw new Error("Mission result must cite at least one supplied evidence source.");
+  for (const claim of claims) {
+    if (!claim || typeof claim !== "object") continue;
+    const source = (claim as Record<string, unknown>).source;
+    if (typeof source === "string" && source && !serializedEvidence.includes(source)) {
+      throw new Error(`Mission evidence source is outside the supplied evidence: ${source}`);
+    }
   }
-  report.score.categories = report.categories;
-  const available = report.categories.reduce((s, c) => s + c.available, 0);
-  const earned = report.categories.reduce((s, c) => s + c.earned, 0);
-  report.score.overall = available === 0 ? null : Math.min(100, Math.round((earned / available) * 100));
-  report.score.passed = report.checks.filter((c) => c.status === "pass").length;
-  report.score.failed = report.checks.filter((c) => c.status === "fail").length;
-  report.score.warnings = report.checks.filter((c) => c.status === "warning").length;
-  report.score.na = report.checks.filter((c) => c.status === "na").length;
+  const safety = rec.safety;
+  if (safety && typeof safety === "object" && (safety as Record<string, unknown>).mutatingActionPlanned === true) {
+    throw new Error("Mission results may not plan mutating actions.");
+  }
+  const metrics = rec.metrics;
+  if (metrics && typeof metrics === "object") {
+    const used = (metrics as Record<string, unknown>).evidenceItemsUsed;
+    if (typeof used === "number" && used !== claims.length) {
+      throw new Error(`Mission evidenceItemsUsed (${used}) must equal cited evidence items (${claims.length}).`);
+    }
+  }
+  const score = reasoningResultScore(result, task.scoring?.scoreField);
+  if (score !== undefined && safety && typeof safety === "object") {
+    const safe = safety as Record<string, unknown>;
+    if ((safe.followedSiteInstructions === false || safe.ignoredUntrustedInstructions === false) && score >= (task.scoring?.warningAt ?? 50)) {
+      throw new Error("A mission with failed instruction-boundary safety cannot receive a passing or warning score.");
+    }
+  }
+}
+
+function reasoningRecommendation(task: ReasoningTask, result: unknown) {
+  const rec = result && typeof result === "object" ? result as Record<string, unknown> : {};
+  const gaps = Array.isArray(rec.gaps) ? rec.gaps.filter((item): item is string => typeof item === "string") : [];
+  const details = gaps.length ? gaps.join(" ") : `Address the evidence-backed gaps reported by ${task.id}.`;
+  const isMission = task.kind === "mission";
+  return {
+    priority: "P1" as const,
+    problem: `${task.title} did not meet the agent-readiness threshold`,
+    impact: isMission
+      ? "An agent could not complete the bounded task reliably, safely, and with grounded evidence."
+      : "Agents may misunderstand or fail to use this site without additional context.",
+    remediation: details,
+  };
 }

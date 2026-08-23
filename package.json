@@ -1,6 +1,6 @@
 {
-  "name": "agentlint",
-  "version": "0.1.0",
+  "name": "@timbenniks/agentlint",
+  "version": "0.1.0-rc.1",
   "description": "A deterministic-first website scanner for agent readiness",
   "type": "module",
   "bin": {
@@ -26,9 +26,17 @@
     "agentlint": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
     "test": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
+    "test:fixtures": "vitest run tests/site-matrix.test.ts",
+    "test:package": "pnpm build && node scripts/package-smoke.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "tsup"
+    "docs:dev": "pnpm --filter @agentlint/docs dev",
+    "docs:build": "pnpm --filter @agentlint/docs build",
+    "docs:preview": "pnpm --filter @agentlint/docs preview",
+    "verify:release": "pnpm typecheck && pnpm test && pnpm test:browser && pnpm docs:build && pnpm test:package",
+    "prepack": "pnpm build",
+    "prepublishOnly": "pnpm verify:release"
   },
   "keywords": [
     "agentlint",
@@ -43,6 +51,13 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/timbenniks/agentlint"
+  },
+  "bugs": {
+    "url": "https://github.com/timbenniks/agentlint/issues"
+  },
+  "homepage": "https://agentlint.timbenniks.dev",
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "ajv": "^8.17.1",

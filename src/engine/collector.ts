@@ -3,8 +3,10 @@ import type {
   BrowserEvidence,
   CapabilityMap,
   CrawlerAccessResult,
+  DeveloperPortalEvidence,
   EntityResolution,
   MarkdownEvidence,
+  McpEvidence,
   ScanContext,
   ScanOptions,
   TextResourceEvidence,
@@ -45,10 +47,11 @@ export async function collectContext(options: ScanOptions): Promise<ScanContext>
   homepage.finalUrl = finalUrl;
   homepage.canonical = homepage.canonical ?? finalUrl;
 
-  const [robots, llmsTxt, agentsMd] = await Promise.all([
+  const [robots, llmsTxt, agentsMd, mcp] = await Promise.all([
     collectRobots(http, origin),
     firstOkText(http, origin, LLMS_PATHS, "text/plain,text/markdown,*/*;q=0.8"),
     firstOkText(http, origin, AGENT_DISCOVERY_PATHS, "text/markdown,text/plain,*/*;q=0.8"),
+    discoverMcp(http, origin),
   ]);
 
   const sitemap = await collectSitemap(http, origin, robots);
@@ -139,6 +142,7 @@ export async function collectContext(options: ScanOptions): Promise<ScanContext>
   const capabilities: CapabilityMap = {
     api,
     hasOpenApi: Boolean(openApi?.valid),
+    hasMcp: Boolean(mcp?.valid),
     hasBrowser: Boolean(browser && !browser.error),
     hasLlmsTxt: Boolean(llmsTxt && llmsTxt.status >= 200 && llmsTxt.status < 300 && llmsTxt.body.trim()),
     hasDeveloperPortal: developerPortals.some((p) => p.status >= 200 && p.status < 400),
@@ -164,6 +168,7 @@ export async function collectContext(options: ScanOptions): Promise<ScanContext>
       llmsTxt,
       agentsMd,
       openApi,
+      mcp,
       jsonLd,
       markdown,
       developerPortals,
@@ -174,6 +179,28 @@ export async function collectContext(options: ScanOptions): Promise<ScanContext>
     capabilities,
     options,
   };
+}
+
+async function discoverMcp(http: HttpClient, origin: string): Promise<McpEvidence | undefined> {
+  const url = new URL("/.well-known/mcp", origin).href;
+  const response = await http.get(url, { headers: { accept: "application/json,*/*;q=0.8" } });
+  if (!response.ok || !response.body.trim()) return undefined;
+  try {
+    const document = JSON.parse(response.body) as Record<string, unknown>;
+    const endpointValue = document.endpoint ?? document.url ?? document.transport;
+    const endpoint = typeof endpointValue === "string" ? new URL(endpointValue, response.finalUrl).href : undefined;
+    return {
+      discoveredAt: new Date().toISOString(),
+      url: response.finalUrl,
+      status: response.status,
+      valid: true,
+      endpoint,
+      transport: typeof document.transport === "string" ? document.transport : undefined,
+      document,
+    };
+  } catch {
+    return { discoveredAt: new Date().toISOString(), url: response.finalUrl, status: response.status, valid: false };
+  }
 }
 
 async function firstOkText(
@@ -224,8 +251,15 @@ async function probeDeveloperPortals(
   for (const url of unique) {
     const res = await http.get(url);
     if (res.status === 0) continue;
-    const title = res.ok ? parseHtml(res.body, res.finalUrl).title : undefined;
-    results.push({ url: res.finalUrl, status: res.status, title });
+    const parsed = res.ok ? parseHtml(res.body, res.finalUrl) : undefined;
+    results.push({
+      url: res.finalUrl,
+      status: res.status,
+      title: parsed?.title,
+      description: parsed?.description,
+      headings: parsed?.headings.slice(0, 30) ?? [],
+      textSample: parsed?.text?.slice(0, 6000),
+    } satisfies DeveloperPortalEvidence);
   }
   return results;
 }
@@ -302,9 +336,14 @@ export function resolveEntityDeterministic(
 ): EntityResolution | undefined {
   const INFRA = /vercel|netlify|cloudflare|aws|google cloud|github pages|shopify|wix|squarespace|wordpress|next\.js|react/i;
 
-  const preferred = jsonLd.find((item) =>
-    item.types.some((t) => ["Person", "Organization", "Product", "SoftwareApplication", "WebSite"].includes(t)),
-  );
+  const rankedTypes = ["Person", "Organization", "Product", "SoftwareApplication", "WebSite"];
+  const preferred = jsonLd
+    .filter((item) => pickName(item.data) && item.types.some((type) => rankedTypes.includes(type)))
+    .sort((a, b) => {
+      const aRank = Math.min(...a.types.map((type) => rankedTypes.indexOf(type)).filter((rank) => rank >= 0));
+      const bRank = Math.min(...b.types.map((type) => rankedTypes.indexOf(type)).filter((rank) => rank >= 0));
+      return aRank - bRank;
+    })[0];
   if (preferred) {
     const name = pickName(preferred.data);
     const type = mapType(preferred.types);
@@ -363,4 +402,3 @@ function mapType(types: string[]): EntityResolution["entityType"] {
   if (types.includes("WebSite")) return "project";
   return "unknown";
 }
-

@@ -45,11 +45,43 @@ describe("scoring", () => {
     expect(scoreChecks(items).overall).toBe(100);
   });
 
+  it("does not let bonus points erase a warning", () => {
+    const items = [
+      scored(check({ id: "a", severity: "required" }), { status: "warning", summary: "", evidence: [] }),
+      scored(check({ id: "b", severity: "bonus" }), { status: "pass", summary: "", evidence: [] }),
+    ];
+    expect(scoreChecks(items).overall).toBe(60);
+  });
+
   it("gives warnings partial credit", () => {
     const c = check({ id: "a", severity: "required" });
     const pts = pointsFor(c, { status: "warning", summary: "", evidence: [] });
     expect(pts.available).toBe(10);
     expect(pts.earned).toBe(6);
+  });
+
+  it("keeps delegated reasoning out of deterministic surface readiness", () => {
+    const items = [
+      scored(check({ id: "http", severity: "required", provenance: "HTTP" }), { status: "pass", summary: "", evidence: [] }),
+      scored(check({ id: "entity", severity: "required", provenance: "STATIC" }), {
+        status: "warning",
+        summary: "Needs bounded entity reasoning",
+        evidence: [],
+        reasoningTask: {
+          taskVersion: "1",
+          id: "entity-identification",
+          type: "reasoning",
+          title: "Entity identification",
+          instructions: "Use evidence.",
+          evidence: {},
+          outputSchema: {},
+          status: "pending",
+        },
+      }),
+    ];
+    const card = scoreChecks(items);
+    expect(card.overall).toBe(80);
+    expect(card.surface).toBe(100);
   });
 
   it("labels scores", () => {
