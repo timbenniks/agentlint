@@ -2,7 +2,7 @@
 import { ref } from "vue";
 
 const copied = ref(false);
-const install = "npx agentlint init https://example.com";
+const install = "npx @timbenniks/agentlint init https://example.com";
 
 async function copyInstall() {
   await navigator.clipboard.writeText(install);
