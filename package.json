@@ -4,7 +4,7 @@
   "description": "A deterministic-first website scanner for agent readiness",
   "type": "module",
   "bin": {
-    "agentlint": "./dist/cli/index.js"
+    "agentlint": "dist/cli/index.js"
   },
   "exports": {
     ".": {
@@ -50,7 +50,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/timbenniks/agentlint"
+    "url": "git+https://github.com/timbenniks/agentlint.git"
   },
   "bugs": {
     "url": "https://github.com/timbenniks/agentlint/issues"
