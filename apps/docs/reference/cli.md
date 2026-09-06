@@ -41,6 +41,31 @@ agentlint https://example.com [options]
 agentlint scan https://example.com --format html > agentlint-report.html
 ```
 
+## `eval <task-file>`
+
+Run a heavier behavioral evaluation separately from the static scanner. The task is a versioned YAML or JSON file; the runner is an external coding-agent CLI or harness that reads the prompt from stdin.
+
+See the [behavioral eval module](../modules/behavioral-evals) for task definitions, adapter boundaries, validation, scoring, and traces.
+
+```bash
+agentlint eval task.agentlint.yaml --command my-agent --arg=--non-interactive
+```
+
+| Option | Purpose |
+| --- | --- |
+| `--command <executable>` | Runner executable. Required. |
+| `--arg <value>` | Pass one runner argument. Repeat as needed; `--arg=value` is convenient for values beginning with `-`. |
+| `--target <url>` | Override the target URL in the task. |
+| `--timeout <ms>` | Override the task runner timeout. |
+| `--format <fmt>` | `terminal` or `json`. Defaults to `terminal`. |
+| `--output <dir>` | Report root. Defaults to `.agentlint`. |
+| `--keep-sandbox` | Preserve the temporary workspace after the run. |
+| `--allow-validator-commands` | Allow commands declared inside the task definition to execute. |
+
+The runner starts in a temporary working copy and receives the prompt through stdin. It also receives `AGENTLINT_EVAL_TASK_ID`, `AGENTLINT_EVAL_TARGET`, and `AGENTLINT_EVAL_WORKSPACE`. A temporary directory is an execution abstraction, not an OS security boundary.
+
+Results are stored separately at `.agentlint/evals/latest.json` and `.agentlint/evals/runs/<eval-id>.json`. A failed eval exits with status `1`; task, runner, or orchestration errors exit with status `2`.
+
 ## `init [url]`
 
 Configure Agentlint in an existing website project.
@@ -146,8 +171,8 @@ agentlint --version
 | Status | Meaning |
 | --- | --- |
 | `0` | Command completed without an enforced regression. Findings may still exist in a normal scan. |
-| `1` | `--ci` or `baseline compare` found a regression. |
-| `2` | A handled scan, initialization, report, or baseline error. |
+| `1` | `--ci` or `baseline compare` found a regression, or a behavioral eval did not meet its success threshold. |
+| `2` | A handled scan, eval, initialization, report, or baseline error. |
 
 Task validation and unexpected runtime failures also return a non-zero status; consumers should treat any value other than `0` as unsuccessful unless they specifically handle the regression status.
 

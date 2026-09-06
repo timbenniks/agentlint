@@ -34,5 +34,11 @@ describe("argv rewrite", () => {
       "--json",
     ]);
     expect(rewriteArgv(["node", "agentlint", "tasks"])).toEqual(["node", "agentlint", "tasks"]);
+    expect(rewriteArgv(["node", "agentlint", "eval", "task.yaml"])).toEqual([
+      "node",
+      "agentlint",
+      "eval",
+      "task.yaml",
+    ]);
   });
 });

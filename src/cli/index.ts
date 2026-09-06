@@ -15,6 +15,7 @@ import {
 import { getTask, listTasks, resolveTask } from "./tasks.ts";
 import { readAgentlintConfig } from "./config.ts";
 import { initProject } from "./init.ts";
+import { builtinModuleCommands, registerBuiltinModules } from "../modules/index.ts";
 import type { ScanOptions } from "../types.ts";
 
 export function buildProgram(): Command {
@@ -22,7 +23,7 @@ export function buildProgram(): Command {
   program
     .name("agentlint")
     .description(
-      "Deterministic-first website scanner for agent readiness. Coding agents: run `scan <url> --agent`, then `task get <id>` / `task resolve <id> --result` for any pending reasoning tasks. Do not call a model API. N/A checks are not failures.",
+      "Deterministic-first scanner and behavioral eval runner for agent readiness. Coding agents: run `scan <url> --agent`, then `task get <id>` / `task resolve <id> --result` for any pending reasoning tasks. Do not call a model API. N/A checks are not failures.",
     )
     .version(AGENTLINT_VERSION)
     .addHelpText(
@@ -46,6 +47,8 @@ Agent workflow:
         await executeScan(url, opts);
       }),
   );
+
+  registerBuiltinModules(program);
 
   program
     .command("init")
@@ -292,7 +295,18 @@ export function parseScanOptions(url: string, raw: Record<string, unknown>): Sca
   };
 }
 
-const TOP_LEVEL_COMMANDS = new Set(["scan", "init", "tasks", "task", "explain", "fix", "prompt", "baseline", "help"]);
+const TOP_LEVEL_COMMANDS = new Set([
+  "scan",
+  "init",
+  "tasks",
+  "task",
+  "explain",
+  "fix",
+  "prompt",
+  "baseline",
+  "help",
+  ...builtinModuleCommands,
+]);
 
 export function rewriteArgv(argv: string[]): string[] {
   const args = argv.slice(2);

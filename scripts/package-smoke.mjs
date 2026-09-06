@@ -74,9 +74,37 @@ try {
   const htmlStdout = await run(executable, ["scan", target, "--allow-private", "--no-browser", "--format", "html"], project, env);
   if (!htmlStdout.stdout.startsWith("<!doctype html>")) throw new Error("--format html emitted non-HTML output");
 
+  const evalTask = join(project, "package-smoke.agentlint.json");
+  await writeFile(evalTask, JSON.stringify({
+    schemaVersion: "1",
+    id: "package-smoke",
+    title: "Packaged behavioral eval",
+    prompt: "Create eval-result.json with ok set to true.",
+    validators: [{
+      id: "result-shape",
+      type: "json-schema",
+      path: "eval-result.json",
+      schema: { type: "object", required: ["ok"], properties: { ok: { const: true } } },
+    }],
+  }));
+  await run(executable, [
+    "eval",
+    evalTask,
+    "--command",
+    process.execPath,
+    "--arg=-e",
+    "--arg=require('node:fs').writeFileSync('eval-result.json', JSON.stringify({ok:true}))",
+    "--format",
+    "json",
+  ], project, env);
+  const evalResult = JSON.parse(await readFile(join(project, ".agentlint", "evals", "latest.json"), "utf8"));
+  if (evalResult.status !== "pass" || evalResult.score !== 100) {
+    throw new Error("packaged behavioral eval did not pass");
+  }
+
   process.stdout.write(`Package smoke passed: ${packResult[0].name}@${version}\n`);
   process.stdout.write(`Tarball: ${packResult[0].size} bytes · ${packResult[0].entryCount} entries\n`);
-  process.stdout.write("Covered: install, init, scan, task get/resolve, HTML, baseline, CI compare\n");
+  process.stdout.write("Covered: install, init, scan, task get/resolve, HTML, baseline, CI compare, behavioral eval\n");
 } finally {
   await fixture.close();
 }

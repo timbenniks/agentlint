@@ -1,7 +1,7 @@
 {
   "name": "@timbenniks/agentlint",
   "version": "0.1.0-rc.1",
-  "description": "A deterministic-first website scanner for agent readiness",
+  "description": "A deterministic-first scanner and behavioral eval runner for agent readiness",
   "type": "module",
   "bin": {
     "agentlint": "dist/cli/index.js"

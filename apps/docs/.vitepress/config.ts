@@ -20,8 +20,10 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started", activeMatch: "/guide/" },
       { text: "Concepts", link: "/concepts/deterministic-first", activeMatch: "/concepts/" },
+      { text: "Modules", link: "/modules/", activeMatch: "/modules/" },
       { text: "Reference", link: "/reference/cli", activeMatch: "/reference/" },
       { text: "Integrations", link: "/integrations/coding-agents", activeMatch: "/integrations/" },
+      { text: "Rules", link: "/reference/checks" },
       { text: "0.1", items: [{ text: "MVP status", link: "/reference/checks#current-scope" }] },
     ],
     sidebar: {
@@ -43,11 +45,16 @@ export default defineConfig({
         { text: "Reasoning tasks", link: "/concepts/reasoning-tasks" },
         { text: "Bounded missions", link: "/concepts/missions" },
       ] }],
+      "/modules/": [{ text: "Modules", items: [
+        { text: "Overview", link: "/modules/" },
+        { text: "Static scanner", link: "/modules/scanner" },
+        { text: "Behavioral evals", link: "/modules/behavioral-evals" },
+      ] }],
       "/reference/": [{ text: "Reference", items: [
         { text: "CLI", link: "/reference/cli" },
         { text: "Configuration", link: "/reference/config" },
         { text: "Reports and files", link: "/reference/reports" },
-        { text: "Checks and scope", link: "/reference/checks" },
+        { text: "Rules reference", link: "/reference/checks" },
       ] }],
       "/integrations/": [{ text: "Integrations", items: [
         { text: "Coding agents", link: "/integrations/coding-agents" },

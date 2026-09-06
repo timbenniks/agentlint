@@ -1,0 +1,53 @@
+schemaVersion: "1"
+id: agentlint-project-setup
+title: Configure Agentlint in an existing website project
+description: Dogfood Agentlint's public docs with a bounded, credential-free setup task.
+target: https://agentlint.timbenniks.dev/guide/project-setup
+prompt: |
+  Use the product's public documentation to configure Agentlint in this existing
+  website project. The deployed site to scan is https://example.com/. Preserve the
+  existing build script. Use the scoped npm package, add the recommended agent-native
+  scan workflow with bounded missions, and add the documented Agentlint instructions
+  to AGENTS.md. Do not run a website scan, deploy anything, or use credentials.
+workspace:
+  source: ./fixtures/agentlint-project-setup
+successThreshold: 100
+validators:
+  - id: config
+    title: Agentlint configuration is valid
+    type: json-schema
+    path: agentlint.config.json
+    schema:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, target]
+      properties:
+        schemaVersion:
+          const: "1"
+        target:
+          const: https://example.com/
+  - id: package
+    title: Package and agent-native script are configured
+    type: json-schema
+    path: package.json
+    schema:
+      type: object
+      required: [scripts, devDependencies]
+      properties:
+        scripts:
+          type: object
+          required: [build, agentlint]
+          properties:
+            build:
+              const: node build.mjs
+            agentlint:
+              type: string
+              pattern: "agentlint scan.*--agent.*--missions"
+        devDependencies:
+          type: object
+          required: ["@timbenniks/agentlint"]
+  - id: agent-instructions
+    title: Agent instructions include the managed workflow
+    type: file-contains
+    path: AGENTS.md
+    contains: "<!-- agentlint:start -->"

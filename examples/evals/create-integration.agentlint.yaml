@@ -1,0 +1,29 @@
+schemaVersion: "1"
+id: create-integration
+title: Create a minimal integration
+description: Example behavioral eval task for an external coding-agent runner.
+target: https://example.com/docs
+prompt: |
+  Use the target product's public documentation to implement the requested integration
+  in this workspace. Create integration.json with the integration name and a non-empty
+  array named steps. Do not include credentials or make destructive external changes.
+successThreshold: 100
+validators:
+  - id: integration-file
+    title: Integration artifact exists
+    type: file-exists
+    path: integration.json
+  - id: integration-schema
+    title: Integration artifact has the expected shape
+    type: json-schema
+    path: integration.json
+    schema:
+      type: object
+      required: [name, steps]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        steps:
+          type: array
+          minItems: 1
