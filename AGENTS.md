@@ -40,7 +40,6 @@ If stdout contains `AGENTLINT_REASONING_REQUIRED` or JSON `"status": "reasoning_
 | Command | Purpose |
 | --- | --- |
 | `scan <url>` | Deterministic scan |
-| `eval <task-file> --command <runner>` | Heavier behavioral implementation eval |
 | `tasks` | List reasoning tasks |
 | `task get <id>` | Full task payload |
 | `task resolve <id> --result '<json>'` | Validate and store result |
@@ -49,5 +48,3 @@ If stdout contains `AGENTLINT_REASONING_REQUIRED` or JSON `"status": "reasoning_
 | `prompt` | Self-contained coding-agent remediation loop |
 | `baseline save` | Save the accepted readiness state |
 | `baseline compare` | Fail on agent-readiness regressions |
-
-Behavioral evals are separate from the scan workflow. They run the explicitly selected external agent command in a temporary workspace and write results below `.agentlint/evals/`. A temporary workspace is not an OS security boundary. Never enable task-authored command validators unless the task file is trusted.

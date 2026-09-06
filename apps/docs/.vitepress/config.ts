@@ -20,7 +20,6 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started", activeMatch: "/guide/" },
       { text: "Concepts", link: "/concepts/deterministic-first", activeMatch: "/concepts/" },
-      { text: "Modules", link: "/modules/", activeMatch: "/modules/" },
       { text: "Reference", link: "/reference/cli", activeMatch: "/reference/" },
       { text: "Integrations", link: "/integrations/coding-agents", activeMatch: "/integrations/" },
       { text: "Rules", link: "/reference/checks" },
@@ -44,11 +43,6 @@ export default defineConfig({
         { text: "Scoring", link: "/concepts/scoring" },
         { text: "Reasoning tasks", link: "/concepts/reasoning-tasks" },
         { text: "Bounded missions", link: "/concepts/missions" },
-      ] }],
-      "/modules/": [{ text: "Modules", items: [
-        { text: "Overview", link: "/modules/" },
-        { text: "Static scanner", link: "/modules/scanner" },
-        { text: "Behavioral evals", link: "/modules/behavioral-evals" },
       ] }],
       "/reference/": [{ text: "Reference", items: [
         { text: "CLI", link: "/reference/cli" },

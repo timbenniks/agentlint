@@ -1,6 +1,6 @@
 # Agentlint
 
-**A deterministic-first website scanner and behavioral eval runner for agent readiness.**
+**A deterministic-first website scanner for agent readiness.**
 
 Agentlint tells you whether agents can find, understand, and use your website, and proves every conclusion with evidence.
 
@@ -58,9 +58,6 @@ agentlint scan https://example.com --agent
 agentlint scan https://example.com --agent --missions
 agentlint scan http://localhost:3000 --allow-private
 
-agentlint eval task.agentlint.yaml \
-  --command codex --arg=exec --arg=-
-
 agentlint tasks
 agentlint task get entity-identification
 agentlint task resolve entity-identification --result '{"entity":"Example","entityType":"organization","confidence":0.9,"evidence":["JSON-LD"]}'
@@ -81,32 +78,6 @@ Default scan behavior:
 - no form submission, no mutations, no authentication
 
 Private/local targets are blocked unless you pass `--allow-private`.
-
-## Behavioral evals (V2)
-
-`scan` remains the fast, deterministic product-surface check. `eval` is a separate, heavier path that gives an external agent a real implementation task, runs it in a temporary workspace, validates the resulting artifacts, and records a structured trace.
-
-```bash
-agentlint eval task.agentlint.yaml \
-  --command my-agent-runner \
-  --arg=--non-interactive \
-  --format json
-```
-
-Agentlint does not call a model API. The command adapter lets an existing coding-agent CLI or custom harness read the task and target URL from stdin. It also receives `AGENTLINT_EVAL_TASK_ID`, `AGENTLINT_EVAL_TARGET`, and `AGENTLINT_EVAL_WORKSPACE` in its environment and runs with the eval workspace as its current directory.
-
-Task definitions are versioned YAML or JSON and contain the prompt, optional target URL and starter workspace, success threshold, and deterministic validators. Built-in validators cover file existence, text content, JSON Schema, and commands. Task-authored command validators are disabled unless `--allow-validator-commands` is explicitly supplied.
-
-The default sandbox is an isolated temporary working copy, not an OS security boundary. Use `--keep-sandbox` to inspect it after a run. Eval output is deliberately separate from scan state:
-
-```text
-.agentlint/evals/latest.json
-.agentlint/evals/runs/<eval-id>.json
-```
-
-The initial V2 does not combine static and behavioral scores. This keeps benchmark tasks, agent harness choice, cost policy, and execution risk out of the deterministic scanner while leaving stable adapter interfaces for container or hosted runners later.
-
-Agentlint's CLI is module-ready: independent capabilities own their command registration and are listed in `src/modules/index.ts`. A future module keeps its runtime, types, state, reporting, tests, and VitePress page inside one boundary instead of adding another execution path to the scanner. See the [modules documentation](https://agentlint.timbenniks.dev/modules/) for the contract and decision rules.
 
 ## Project setup
 
@@ -266,6 +237,6 @@ The root `vercel.json` builds only the VitePress application and publishes `apps
 
 ## Status
 
-This is MVP 0.1 plus the additive V2 behavioral-eval foundation: HTTP crawling, content and crawler-access checks, OpenAPI discovery, Playwright/WebMCP inspection, reasoning tasks, bounded missions, regression baselines, remediation-loop prompts, terminal/JSON/Markdown reports, versioned eval tasks, runner and sandbox adapters, deterministic validators, and eval traces.
+This is MVP 0.1: HTTP crawling, content and crawler-access checks, OpenAPI discovery, Playwright/WebMCP inspection, reasoning tasks, bounded missions, regression baselines, remediation-loop prompts, and terminal/JSON/Markdown reports.
 
-Not included: model APIs, hosted accounts, managed containers, external search, live mutating journeys, MCP handshake execution, or plugins.
+Not in 0.1: model APIs, hosted accounts, external search, live mutating journeys, MCP handshake execution, or plugins.
