@@ -1,6 +1,16 @@
 name: Publish package
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+      prerelease:
+        description: Publish to the next dist-tag
+        default: false
+        type: boolean
   release:
     types: [published]
 
@@ -13,12 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
           cache: pnpm
+      - run: npm install --global npm@11
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Verify release tag matches package version
@@ -28,7 +41,7 @@ jobs:
           if (process.env.TAG !== 'v' + pkg.version)
           throw new Error('Expected tag v' + pkg.version + ', received ' + process.env.TAG)"
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
       - name: Check whether version is already published
         id: registry
         run: |
@@ -40,12 +53,12 @@ jobs:
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Publish prerelease
-        if: github.event.release.prerelease && steps.registry.outputs.published != 'true'
+        if: (github.event.release.prerelease || inputs.prerelease) && steps.registry.outputs.published != 'true'
         run: npm publish --tag next --provenance
         env:
           npm_config_cache: ${{ runner.temp }}/npm-cache
       - name: Publish stable release
-        if: ${{ !github.event.release.prerelease && steps.registry.outputs.published != 'true' }}
+        if: ${{ !(github.event.release.prerelease || inputs.prerelease) && steps.registry.outputs.published != 'true' }}
         run: npm publish --tag latest --provenance
         env:
           npm_config_cache: ${{ runner.temp }}/npm-cache
